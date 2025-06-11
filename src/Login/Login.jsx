@@ -1,20 +1,29 @@
 import * as Yup from 'yup';
 
 import { ErrorMessage, Field, Form, Formik } from 'formik';
-import Nav from "../NavBar/Nav";
+
 import {Link} from 'react-router-dom';
+import Nav from "../NavBar/Nav";
 import React from 'react';
 import axios from 'axios';
+import { useNavigate } from "react-router-dom";
+
 const LoginSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email').required('Required'),
   password: Yup.string().required('Required'),
 });
 
 const LoginForm = () => {
+  const navigate=useNavigate();
   const handleLogin = async (values) => {
     try {
       const res = await axios.post('http://localhost:8082/api/users/login', values);
+       const userId = res.data.id;
+       console.log(userId);
       alert('Login successful!');
+      navigate("/events");
+    localStorage.setItem("userId", userId);
+   
       console.log(res.data); // handle token or session
     } catch (err) {
       console.error(err);

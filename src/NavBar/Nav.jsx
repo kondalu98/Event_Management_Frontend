@@ -18,7 +18,7 @@ const Nav = () => {
           {/* Desktop Links */}
           <div className="hidden md:flex space-x-6 text-sm font-medium">
             <a href="/" className="hover:text-gray-200">Home</a>
-            <a href="/events" className="hover:text-gray-200">Events</a>
+            <Link to="/events" className="hover:text-gray-200">Events</Link>
             <a href="/tickets" className="hover:text-gray-200">My Tickets</a>
             <a href="/feedback" className="hover:text-gray-200">Feedback</a>
             <Link to="/login" className="hover:text-gray-200">Login / Register</Link>
