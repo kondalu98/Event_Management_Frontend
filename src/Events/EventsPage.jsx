@@ -1,83 +1,119 @@
+// Inside your EventsPage.jsx
 import React, { useEffect, useState } from "react";
-
 import axios from "axios";
+import { Link, useLocation } from "react-router-dom"; // Import useLocation
 
 const EventsPage = () => {
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [filters, setFilters] = useState({
-    category: "",
-    location: "",
-    date: ""
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const location = useLocation(); // Get the current location object
+
+  // Base URL for your API
+  const apiUrl = "http://localhost:8082";
+  const eventsApiUrl = `${apiUrl}/api/events`;
+
+  // State for filters, initialized from URL query params
+  const [filters, setFilters] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return {
+      category: params.get("category") || "",
+      location: params.get("location") || "", // Read 'location' from URL
+      date: params.get("date") || ""
+    };
   });
 
   useEffect(() => {
+    const fetchAllEvents = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await axios.get(eventsApiUrl);
+        setEvents(res.data);
+        // Apply filters once events are fetched, including the one from URL
+        applyFilters(res.data, filters);
+      } catch (err) {
+        console.error("Error fetching events:", err);
+        setError("Failed to load events. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchAllEvents();
-  }, []);
+  }, [eventsApiUrl]);
 
-  const fetchAllEvents = async () => {
-    try {
-      const res = await axios.get("http://localhost:8082/api/events");
-      setEvents(res.data);
-      setFilteredEvents(res.data);
-    } catch (error) {
-      console.error("Error fetching events:", error);
-    }
-  };
+  // Effect to re-apply filters when URL changes or filters state changes
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const newFilters = {
+      category: params.get("category") || "",
+      location: params.get("location") || "",
+      date: params.get("date") || ""
+    };
+    setFilters(newFilters); // Update internal filter state from URL
+    applyFilters(events, newFilters); // Apply filters to current events
+  }, [location.search, events]); // Depend on location.search and events
 
-  const applyFilters = () => {
-    const { category, location, date } = filters;
-    let filtered = [...events];
+  // Modified applyFilters to take events and filters as arguments
+  const applyFilters = (eventsToFilter, currentFilters) => {
+    const { category, location, date } = currentFilters;
+    let currentFiltered = [...eventsToFilter];
 
     if (category) {
-      filtered = filtered.filter(event =>
+      currentFiltered = currentFiltered.filter((event) =>
         event.category.toLowerCase().includes(category.toLowerCase())
       );
     }
 
     if (location) {
-      filtered = filtered.filter(event =>
+      currentFiltered = currentFiltered.filter((event) =>
         event.location.toLowerCase().includes(location.toLowerCase())
       );
     }
 
     if (date) {
-      filtered = filtered.filter(event => event.date === date);
+      currentFiltered = currentFiltered.filter((event) => event.date === date);
     }
 
-    setFilteredEvents(filtered);
+    setFilteredEvents(currentFiltered);
   };
 
   const handleInputChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const newFilters = { ...filters, [name]: value };
+    setFilters(newFilters);
+    // You might want to apply filters immediately on input change or
+    // only on "Apply" button click. For now, it will update when URL changes.
   };
+
+  const handleApplyButtonClick = () => {
+    // Manually construct and navigate to the new URL with updated filters
+    const params = new URLSearchParams();
+    if (filters.category) params.set("category", filters.category);
+    if (filters.location) params.set("location", filters.location);
+    if (filters.date) params.set("date", filters.date);
+    // Use replace to avoid adding multiple history entries for filter changes
+    window.history.replaceState(null, '', `?${params.toString()}`);
+    // Then apply filters based on the new URL (which useEffect will catch)
+  };
+
 
   const clearFilters = () => {
     setFilters({ category: "", location: "", date: "" });
-    setFilteredEvents(events);
+    // Clear URL parameters
+    window.history.replaceState(null, '', '/events');
+    // applyFilters will be called by useEffect due to location.search change
   };
 
-  const bookTicket = async () => {
-    const userId = localStorage.getItem("userId");
+  if (loading) {
+    return <div className="text-center p-6">Loading events...</div>;
+  }
 
-    if (!userId || !selectedEvent?.eventID) {
-      alert("User ID or Event ID missing!");
-      return;
-    }
-
-    try {
-      const res = await axios.post("http://localhost:8082/api/tickets/book", {
-        userId: parseInt(userId),
-        eventId: selectedEvent.eventID
-      });
-      alert("Ticket booked successfully!");
-      console.log("Ticket response:", res.data);
-    } catch (err) {
-      console.error("Error booking ticket:", err);
-      alert("Failed to book ticket.");
-    }
-  };
+  if (error) {
+    return <div className="text-center p-6 text-red-600">{error}</div>;
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -107,64 +143,40 @@ const EventsPage = () => {
           className="border px-4 py-2 rounded w-full md:w-1/4"
         />
         <button
-          onClick={applyFilters}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={handleApplyButtonClick} // Use new handler
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
         >
           Apply
         </button>
         <button
           onClick={clearFilters}
-          className="bg-gray-400 text-white px-4 py-2 rounded"
+          className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition"
         >
           Clear
         </button>
       </div>
 
-      {/* List or Details */}
-      {!selectedEvent ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEvents.map(event => (
-            <div
-              key={event.eventID}
-              className="bg-white p-4 rounded shadow hover:shadow-lg cursor-pointer transition"
-              onClick={() => setSelectedEvent(event)}
+      {/* List of Events */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredEvents.length > 0 ? (
+          filteredEvents.map((event) => (
+            <Link
+              to={`/events/${event.id}`}
+              key={event.id}
+              className="bg-white p-4 rounded shadow hover:shadow-lg cursor-pointer transition block"
             >
               <h3 className="text-xl font-semibold mb-2">{event.name}</h3>
               <p className="text-gray-600">📍 {event.location}</p>
               <p className="text-gray-600">📅 {event.date}</p>
               <p className="text-sm text-blue-500">{event.category}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white p-6 rounded shadow max-w-2xl mx-auto">
-          <button
-            className="mb-4 text-blue-600 underline"
-            onClick={() => setSelectedEvent(null)}
-          >
-            ← Back to Events
-          </button>
-          <h2 className="text-2xl font-bold mb-2">{selectedEvent.name}</h2>
-          <p className="text-gray-700 mb-2">
-            <strong>Category:</strong> {selectedEvent.category}
+            </Link>
+          ))
+        ) : (
+          <p className="col-span-full text-center text-gray-500">
+            No events found matching your criteria.
           </p>
-          <p className="text-gray-700 mb-2">
-            <strong>Location:</strong> {selectedEvent.location}
-          </p>
-          <p className="text-gray-700 mb-2">
-            <strong>Date:</strong> {selectedEvent.date}
-          </p>
-          <p className="text-gray-700 mb-4">
-            <strong>Organizer:</strong> {selectedEvent.organizerID}
-          </p>
-          <button
-            onClick={bookTicket}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
-          >
-            Book Ticket
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

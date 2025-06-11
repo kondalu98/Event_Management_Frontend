@@ -9,6 +9,7 @@ import Login from './Login/Login';
 import React from 'react';
 import Register from './Register/Register';
 import Resets from './Reset/Resets';
+import EventDetails from './Events/EventDetails';
 
 // A basic homepage component
 
@@ -27,6 +28,8 @@ const AppRoutes = () => {
         <Route path="/forgot-password" element={<Forgot />} />
         <Route path="/reset-password" element={<Resets />} />
         <Route path="/events" element={<EventsPage />} />
+        <Route path="/events/:eventId" element={<EventDetails />} />
+
       </Routes>
     </Router>
   );
